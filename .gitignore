@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Security - exclude sensitive files
+contracts/.env
+contracts/broadcast/
+contracts/cache/
+contracts/out/
+*.env
+*.key
+*.pem

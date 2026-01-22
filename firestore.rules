@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read access for contests
+    match /contests/{contestId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == resource.data.creatorAddress;
+    }
+    
+    // Public read access for submissions
+    match /submissions/{submissionId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == resource.data.submitterAddress;
+    }
+    
+    // Users can read/update own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Public read access for votes
+    match /votes/{voteId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == resource.data.voterAddress;
+    }
+    
+    // Winners can read own rewards
+    match /rewards/{rewardId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.winnerAddress;
+      allow write: if request.auth != null;
+    }
+    
+    // Public read access for vouches
+    match /vouches/{vouchId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
