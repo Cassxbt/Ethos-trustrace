@@ -53,15 +53,31 @@ export function EthosProfile({ address, showActions = true }: EthosProfileProps)
   }
 
   if (loading) {
-    return <div className="text-gray-500">Loading Ethos profile...</div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
+        <span className="ml-3 text-gray-500">Loading profile...</span>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-red-500">Error: {error}</div>;
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="text-red-700">
+          <span className="font-medium">Error loading profile:</span>
+          <div className="text-sm mt-1">{error}</div>
+        </div>
+      </div>
+    );
   }
 
   if (!profile) {
-    return <div className="text-gray-500">No Ethos profile found</div>;
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="text-gray-500 text-center">No profile data available</div>
+      </div>
+    );
   }
 
   const formatDate = (timestamp: string) => {

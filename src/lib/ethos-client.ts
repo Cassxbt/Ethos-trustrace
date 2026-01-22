@@ -28,6 +28,7 @@ interface EthosClient {
   getUserProfile(address: string): Promise<EthosUserProfile>;
   getUserVouches(address: string): Promise<Vouch[]>;
   getUserAttestations(address: string): Promise<Attestation[]>;
+  resolveENS(ensName: string): Promise<string | null>;
 }
 
 class EthosAPIClient implements EthosClient {
@@ -36,7 +37,41 @@ class EthosAPIClient implements EthosClient {
     'Content-Type': 'application/json'
   };
 
-  async getCredibilityScore(address: string): Promise<number> {
+  private async resolveENSName(ensName: string): Promise<string | null> {
+    try {
+      const response = await fetch(`https://api.ethos.network/api/v2/ens/resolve/${ensName}`, {
+        headers: this.headers
+      });
+      
+      if (!response.ok) {
+        console.warn(`ENS resolution failed for ${ensName}: ${response.statusText}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      return data.address || null;
+    } catch (error) {
+      console.error(`Error resolving ENS name ${ensName}:`, error);
+      return null;
+    }
+  }
+
+  async resolveENS(ensName: string): Promise<string | null> {
+    return this.resolveENSName(ensName);
+  }
+
+  async getCredibilityScore(addressOrENS: string): Promise<number> {
+    let address = addressOrENS;
+    
+    // Check if input is an ENS name
+    if (addressOrENS.endsWith('.eth')) {
+      const resolvedAddress = await this.resolveENSName(addressOrENS);
+      if (!resolvedAddress) {
+        throw new Error(`Failed to resolve ENS name: ${addressOrENS}`);
+      }
+      address = resolvedAddress;
+    }
+    
     const response = await fetch(
       `${ETHOS_API_BASE}/score/address?address=${address}`,
       { headers: this.headers }
@@ -50,7 +85,18 @@ class EthosAPIClient implements EthosClient {
     return data.score;
   }
 
-  async getUserProfile(address: string): Promise<EthosUserProfile> {
+  async getUserProfile(addressOrENS: string): Promise<EthosUserProfile> {
+    let address = addressOrENS;
+    
+    // Check if input is an ENS name
+    if (addressOrENS.endsWith('.eth')) {
+      const resolvedAddress = await this.resolveENSName(addressOrENS);
+      if (!resolvedAddress) {
+        throw new Error(`Failed to resolve ENS name: ${addressOrENS}`);
+      }
+      address = resolvedAddress;
+    }
+    
     const response = await fetch(
       `${ETHOS_API_BASE}/user/by/address/${address}`,
       { headers: this.headers }
@@ -64,7 +110,18 @@ class EthosAPIClient implements EthosClient {
     return data;
   }
 
-  async getUserVouches(address: string): Promise<Vouch[]> {
+  async getUserVouches(addressOrENS: string): Promise<Vouch[]> {
+    let address = addressOrENS;
+    
+    // Check if input is an ENS name
+    if (addressOrENS.endsWith('.eth')) {
+      const resolvedAddress = await this.resolveENSName(addressOrENS);
+      if (!resolvedAddress) {
+        throw new Error(`Failed to resolve ENS name: ${addressOrENS}`);
+      }
+      address = resolvedAddress;
+    }
+    
     const response = await fetch(
       `${ETHOS_API_BASE}/vouches/by-user?userKey=address:${address}`,
       { headers: this.headers }
@@ -77,7 +134,18 @@ class EthosAPIClient implements EthosClient {
     return await response.json();
   }
 
-  async getUserAttestations(address: string): Promise<Attestation[]> {
+  async getUserAttestations(addressOrENS: string): Promise<Attestation[]> {
+    let address = addressOrENS;
+    
+    // Check if input is an ENS name
+    if (addressOrENS.endsWith('.eth')) {
+      const resolvedAddress = await this.resolveENSName(addressOrENS);
+      if (!resolvedAddress) {
+        throw new Error(`Failed to resolve ENS name: ${addressOrENS}`);
+      }
+      address = resolvedAddress;
+    }
+    
     const response = await fetch(
       `${ETHOS_API_BASE}/attestations/by-user?userKey=address:${address}`,
       { headers: this.headers }

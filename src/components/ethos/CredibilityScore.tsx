@@ -64,15 +64,24 @@ export function CredibilityScore({
   }
 
   if (loading) {
-    return <div className="text-gray-500">Loading credibility score...</div>;
+    return (
+      <div className="flex items-center gap-2">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+        <span className="text-gray-500">Loading score...</span>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-red-500">Error: {error}</div>;
+    return (
+      <div className="text-red-500 text-sm">
+        <span className="font-medium">Error:</span> {error}
+      </div>
+    );
   }
 
   if (score === null) {
-    return <div className="text-gray-500">No credibility score found</div>;
+    return <div className="text-gray-500 text-sm">No score available</div>;
   }
 
   const getScoreColor = (score: number) => {
