@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { CreateContestForm, ContestFormData } from '@/components/contests/CreateContestForm';
 import { useRouter } from 'next/navigation';
+import { createContest } from '@/services/contest-service';
+import { ROUTES } from '@/lib/constants';
 
 export default function CreateContestPage() {
   const { address, isConnected } = useAccount();
@@ -22,19 +24,20 @@ export default function CreateContestPage() {
     setError(null);
 
     try {
-      // TODO: Replace with actual contract call
-      console.log('Creating contest:', contestData);
-      
-      // Simulate contract interaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      const contestId = await createContest({
+        title: contestData.title,
+        prompt: contestData.prompt,
+        rewardsPool: contestData.rewardsPool,
+        submissionDuration: Number(contestData.submissionDuration),
+        votingDuration: Number(contestData.votingDuration),
+        minCredibilityScore: Number(contestData.minCredibilityScore),
+        creator: address,
+      });
+
       setSuccess(true);
-      
-      // Redirect to contests page after 2 seconds
       setTimeout(() => {
-        router.push('/contests');
-      }, 2000);
-      
+        router.push(ROUTES.contest(contestId));
+      }, 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create contest');
     } finally {

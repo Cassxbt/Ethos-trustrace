@@ -2,9 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAccount } from 'wagmi';
 import { ContestCard } from './ContestCard';
 import { SubmissionCard } from './SubmissionCard';
+import { SubmitEntryForm, EntryData } from './SubmitEntryForm';
 import { CredibilityScore } from '@/components/ethos/CredibilityScore';
+import { useEthosScore } from '@/hooks/useEthosScore';
+import { getVotePower } from '@/lib/reputation-tiers';
+import {
+  getContestById,
+  incrementContestSubmissions,
+  incrementContestVotes,
+} from '@/services/contest-service';
+import {
+  createSubmission,
+  getSubmissionsByContest,
+  incrementSubmissionVotes,
+  Submission as SubmissionRecord,
+} from '@/services/submission-service';
+import { createVote, getVotesForUserContest } from '@/services/vote-service';
 
 interface Contest {
   id: string;
@@ -27,6 +43,8 @@ interface Submission {
   contestId: string;
   submitter: string;
   contentURI: string;
+  title?: string;
+  description?: string;
   voteCount: string;
   credibilityWeightedVotes: string;
   createdAt: number;
@@ -42,18 +60,23 @@ export default function ContestDetail() {
   const params = useParams();
   const router = useRouter();
   const contestId = params.id as string;
+  const { address } = useAccount();
+  const { score: ethosScore } = useEthosScore(address);
   
   const [contest, setContest] = useState<Contest | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [userVotes, setUserVotes] = useState<Record<string, VoteData>>({});
   const [loading, setLoading] = useState(true);
   const [votingLoading, setVotingLoading] = useState<Record<string, boolean>>({});
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const now = Date.now();
-  const isSubmissionPhase = contest && now < (contest.submissionDeadline * 1000);
-  const isVotingPhase = contest && now >= (contest.submissionDeadline * 1000) && now < (contest.votingDeadline * 1000);
-  const isEnded = contest && now >= (contest.votingDeadline * 1000);
+  const isSubmissionPhase = Boolean(contest && now < contest.submissionDeadline * 1000);
+  const isVotingPhase = Boolean(
+    contest && now >= contest.submissionDeadline * 1000 && now < contest.votingDeadline * 1000
+  );
+  const isEnded = Boolean(contest && now >= contest.votingDeadline * 1000);
 
   useEffect(() => {
     const fetchContestData = async () => {
@@ -61,72 +84,33 @@ export default function ContestDetail() {
       setError(null);
 
       try {
-        // TODO: Replace with actual Firebase/contract calls
-        // const [contestData, submissionsData, votesData] = await Promise.all([
-        //   contestsService.getContest(contestId),
-        //   submissionsService.getContestSubmissions(contestId),
-        //   votesService.getUserVotes(contestId)
-        // ]);
-        
-        // Mock data for now
-        const mockContest: Contest = {
-          id: contestId,
-          title: 'Best Meme of the Week',
-          prompt: 'Create the funniest meme about Web3 and decentralized systems',
-          creator: '0x1234567890123456789012345678901234567890',
-          submissionDeadline: Math.floor(Date.now() / 1000) + 3 * 24 * 60 * 60,
-          votingDeadline: Math.floor(Date.now() / 1000) + 6 * 24 * 60 * 60,
-          rewardsPool: '0.5',
-          minCredibilityScore: 1200,
-          isActive: true,
-          submissionCount: 5,
-          totalVotes: '2.5',
-          totalWeightedVotes: '5.2',
-          createdAt: Math.floor(Date.now() / 1000) - 24 * 60 * 60
-        };
+        const contestData = await getContestById(contestId);
+        if (!contestData) {
+          setContest(null);
+          setSubmissions([]);
+          setUserVotes({});
+          return;
+        }
 
-        const mockSubmissions: Submission[] = [
-          {
-            id: '1',
-            contestId,
-            submitter: '0x2345678901234567890123456789012345678901',
-            contentURI: 'ipfs://QmExample1',
-            voteCount: '0.8',
-            credibilityWeightedVotes: '1.6',
-            createdAt: Math.floor(Date.now() / 1000) - 12 * 60 * 60
-          },
-          {
-            id: '2',
-            contestId,
-            submitter: '0x3456789012345678901234567890123456789012',
-            contentURI: 'ipfs://QmExample2',
-            voteCount: '1.2',
-            credibilityWeightedVotes: '2.4',
-            createdAt: Math.floor(Date.now() / 1000) - 6 * 60 * 60
-          },
-          {
-            id: '3',
-            contestId,
-            submitter: '0x4567890123456789012345678901234567890123',
-            contentURI: 'ipfs://QmExample3',
-            voteCount: '0.5',
-            credibilityWeightedVotes: '1.2',
-            createdAt: Math.floor(Date.now() / 1000) - 2 * 60 * 60
-          }
-        ];
+        const submissionsData = await getSubmissionsByContest(contestId);
+        const votesData = address
+          ? await getVotesForUserContest({ contestId, voter: address })
+          : {};
 
-        const mockVotes: Record<string, VoteData> = {
-          '1': {
-            amount: '0.1',
-            credibilityWeight: 2,
-            votingPower: 2
-          }
-        };
+        const mappedVotes = Object.fromEntries(
+          Object.entries(votesData).map(([submissionId, vote]) => [
+            submissionId,
+            {
+              amount: vote.amount.toString(),
+              credibilityWeight: vote.credibilityWeight,
+              votingPower: vote.votingPower,
+            },
+          ])
+        );
 
-        setContest(mockContest);
-        setSubmissions(mockSubmissions);
-        setUserVotes(mockVotes);
-        
+        setContest(contestData);
+        setSubmissions(submissionsData);
+        setUserVotes(mappedVotes);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load contest');
       } finally {
@@ -137,43 +121,132 @@ export default function ContestDetail() {
     if (contestId) {
       fetchContestData();
     }
-  }, [contestId]);
+  }, [contestId, address]);
 
   const handleVote = async (submissionId: string, amount: string) => {
     setVotingLoading(prev => ({ ...prev, [submissionId]: true }));
     
     try {
-      // TODO: Replace with actual contract call
-      console.log('Voting:', { submissionId, amount });
-      
-      // Simulate contract interaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Update local state optimistically
+      if (!address) {
+        throw new Error('Connect your wallet to vote.');
+      }
+      if (!contest) {
+        throw new Error('Contest not found.');
+      }
+
+      const voteAmount = parseFloat(amount);
+      const votingPower = ethosScore ? getVotePower(ethosScore.score) : 1;
+      const credibilityWeight = votingPower;
+      const weightedVotes = voteAmount * votingPower;
+
+      await createVote({
+        contestId: contest.id,
+        submissionId,
+        voter: address,
+        amount: voteAmount,
+        credibilityWeight,
+        votingPower,
+      });
+
+      await incrementSubmissionVotes({
+        submissionId,
+        voteDelta: voteAmount,
+        weightedDelta: weightedVotes,
+      });
+
+      await incrementContestVotes({
+        contestId: contest.id,
+        voteDelta: voteAmount,
+        weightedDelta: weightedVotes,
+      });
+
       setUserVotes(prev => ({
         ...prev,
         [submissionId]: {
-          amount,
-          credibilityWeight: 2, // Mock - would come from user's actual score
-          votingPower: 2
-        }
+          amount: voteAmount.toString(),
+          credibilityWeight,
+          votingPower,
+        },
       }));
-      
-      // Update submission vote counts
-      setSubmissions(prev => prev.map(sub => 
-        sub.id === submissionId 
-          ? { 
-              ...sub, 
-              voteCount: (parseFloat(sub.voteCount) + parseFloat(amount)).toString(),
-              credibilityWeightedVotes: (parseFloat(sub.credibilityWeightedVotes) + parseFloat(amount) * 2).toString()
+
+      setSubmissions(prev =>
+        prev.map(submission =>
+          submission.id === submissionId
+            ? {
+                ...submission,
+                voteCount: (parseFloat(submission.voteCount) + voteAmount).toString(),
+                credibilityWeightedVotes: (
+                  parseFloat(submission.credibilityWeightedVotes) + weightedVotes
+                ).toString(),
+              }
+            : submission
+        )
+      );
+
+      setContest(prev =>
+        prev
+          ? {
+              ...prev,
+              totalVotes: (parseFloat(prev.totalVotes) + voteAmount).toString(),
+              totalWeightedVotes: (
+                parseFloat(prev.totalWeightedVotes) + weightedVotes
+              ).toString(),
             }
-          : sub
-      ));
-      
+          : prev
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to vote');
     } finally {
       setVotingLoading(prev => ({ ...prev, [submissionId]: false }));
+    }
+  };
+
+  const handleSubmitEntry = async (entryData: EntryData) => {
+    if (!address) {
+      setError('Connect your wallet to submit.');
+      return;
+    }
+    if (!contest) {
+      setError('Contest not found.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const submissionId = await createSubmission({
+        contestId: contest.id,
+        submitter: address,
+        contentURI: entryData.contentURI,
+        title: entryData.title,
+        description: entryData.description,
+      });
+
+      await incrementContestSubmissions(contest.id, 1);
+
+      const newSubmission: SubmissionRecord = {
+        id: submissionId,
+        contestId: contest.id,
+        submitter: address,
+        contentURI: entryData.contentURI,
+        title: entryData.title,
+        description: entryData.description,
+        voteCount: '0',
+        credibilityWeightedVotes: '0',
+        createdAt: Math.floor(Date.now() / 1000),
+      };
+
+      setSubmissions(prev => [newSubmission, ...prev]);
+      setContest(prev =>
+        prev
+          ? { ...prev, submissionCount: prev.submissionCount + 1 }
+          : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit entry');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -281,7 +354,6 @@ export default function ContestDetail() {
           </div>
         </div>
 
-        {/* Submissions */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Submissions ({contest.submissionCount})
@@ -315,23 +387,13 @@ export default function ContestDetail() {
           )}
         </div>
 
-        {/* Submit Entry Button */}
         {isSubmissionPhase && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Submit Your Entry</h3>
-            <p className="text-gray-600 mb-6">
-              Share your creative response to the contest prompt
-            </p>
-            <button
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              onClick={() => {
-                // TODO: Implement submission modal/page
-                alert('Submission form coming soon!');
-              }}
-            >
-              Submit Entry
-            </button>
-          </div>
+          <SubmitEntryForm
+            contestId={contest.id}
+            contestTitle={contest.title}
+            onSubmit={handleSubmitEntry}
+            loading={submitting}
+          />
         )}
       </div>
     </div>

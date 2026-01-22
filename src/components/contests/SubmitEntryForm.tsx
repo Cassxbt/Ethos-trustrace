@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
+import { uploadSubmissionFile } from '@/services/storage-service';
 
 interface SubmitEntryFormProps {
   contestId: string;
@@ -72,20 +73,21 @@ export function SubmitEntryForm({ contestId, contestTitle, onSubmit, loading = f
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
+    if (!address) {
+      setErrors(prev => ({ ...prev, contentURI: 'Connect your wallet to upload files' }));
+      return;
+    }
 
     setFile(uploadedFile);
     setUploading(true);
 
     try {
-      // TODO: Implement IPFS upload
-      // const cid = await ipfsService.uploadFile(uploadedFile);
-      
-      // Mock IPFS upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const mockCID = `QmMock${Date.now()}`;
-      const mockURI = `ipfs://${mockCID}`;
-      
-      setFormData(prev => ({ ...prev, contentURI: mockURI }));
+      const uploadedUrl = await uploadSubmissionFile({
+        contestId,
+        submitter: address,
+        file: uploadedFile,
+      });
+      setFormData(prev => ({ ...prev, contentURI: uploadedUrl }));
       setErrors(prev => ({ ...prev, contentURI: undefined }));
     } catch (err) {
       console.error('Upload failed:', err);
@@ -181,7 +183,7 @@ export function SubmitEntryForm({ contestId, contestTitle, onSubmit, loading = f
                 </div>
                 {formData.contentURI && (
                   <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
-                    ✓ Uploaded to IPFS: {formData.contentURI}
+                    ✓ Uploaded: {formData.contentURI}
                   </div>
                 )}
                 <button

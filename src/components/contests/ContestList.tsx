@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ContestCard } from './ContestCard';
 
 interface Contest {
@@ -17,6 +17,7 @@ interface Contest {
   totalVotes: string;
   totalWeightedVotes: string;
   createdAt: number;
+  creatorScore?: number;
 }
 
 interface ContestListProps {
@@ -26,12 +27,17 @@ interface ContestListProps {
   title?: string;
 }
 
-export function ContestList({ contests, loading = false, error = null, title = 'Contests' }: ContestListProps) {
+export function ContestList({
+  contests,
+  loading = false,
+  error = null,
+  title = 'Contests',
+}: ContestListProps) {
   const [filter, setFilter] = useState<'all' | 'active' | 'ended'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'rewards' | 'deadline'>('newest');
 
   const filteredAndSortedContests = contests
-    .filter(contest => {
+    .filter((contest) => {
       if (filter === 'active') return contest.isActive;
       if (filter === 'ended') return !contest.isActive;
       return true;
@@ -53,8 +59,8 @@ export function ContestList({ contests, loading = false, error = null, title = '
     return (
       <div className="flex justify-center items-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading contests...</p>
+          <div className="w-12 h-12 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[var(--foreground-muted)]">Loading contests...</p>
         </div>
       </div>
     );
@@ -64,9 +70,9 @@ export function ContestList({ contests, loading = false, error = null, title = '
     return (
       <div className="flex justify-center items-center py-12">
         <div className="text-center">
-          <div className="text-red-600 mb-4">⚠️</div>
-          <p className="text-gray-900 font-medium">Error loading contests</p>
-          <p className="text-gray-600 text-sm">{error}</p>
+          <div className="text-red-500 mb-4 text-4xl">⚠️</div>
+          <p className="text-[var(--foreground)] font-medium">Error loading contests</p>
+          <p className="text-[var(--foreground-muted)] text-sm">{error}</p>
         </div>
       </div>
     );
@@ -76,9 +82,9 @@ export function ContestList({ contests, loading = false, error = null, title = '
     return (
       <div className="flex justify-center items-center py-12">
         <div className="text-center">
-          <div className="text-gray-400 mb-4 text-4xl">📋</div>
-          <p className="text-gray-900 font-medium mb-2">No contests found</p>
-          <p className="text-gray-600 text-sm">
+          <div className="text-[var(--foreground-muted)] mb-4 text-4xl">📋</div>
+          <p className="text-[var(--foreground)] font-medium mb-2">No contests found</p>
+          <p className="text-[var(--foreground-muted)] text-sm">
             Be the first to create a contest and start the competition!
           </p>
         </div>
@@ -86,63 +92,93 @@ export function ContestList({ contests, loading = false, error = null, title = '
     );
   }
 
+  const FilterButton = ({
+    label,
+    isActive,
+    onClick,
+  }: {
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+  }) => (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+        isActive
+          ? 'bg-[var(--accent-primary)] text-white'
+          : 'bg-[var(--background-tertiary)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-        <div className="text-sm text-gray-600">
-          {contests.length} contest{contests.length !== 1 ? 's' : ''} found
+        <h2 className="text-2xl font-bold text-[var(--foreground)]">{title}</h2>
+        <div className="text-sm text-[var(--foreground-muted)]">
+          {filteredAndSortedContests.length} contest
+          {filteredAndSortedContests.length !== 1 ? 's' : ''}
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="card-dark p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-6">
           {/* Filter */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter</label>
+            <label className="block text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wide mb-2">
+              Status
+            </label>
             <div className="flex gap-2">
-              {(['all', 'active', 'ended'] as const).map((filterOption) => (
-                <button
-                  key={filterOption}
-                  onClick={() => setFilter(filterOption)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                    filter === filterOption
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
-                </button>
-              ))}
+              <FilterButton
+                label="All"
+                isActive={filter === 'all'}
+                onClick={() => setFilter('all')}
+              />
+              <FilterButton
+                label="Active"
+                isActive={filter === 'active'}
+                onClick={() => setFilter('active')}
+              />
+              <FilterButton
+                label="Ended"
+                isActive={filter === 'ended'}
+                onClick={() => setFilter('ended')}
+              />
             </div>
           </div>
 
           {/* Sort */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+            <label className="block text-xs font-medium text-[var(--foreground-muted)] uppercase tracking-wide mb-2">
+              Sort By
+            </label>
             <div className="flex gap-2">
-              {(['newest', 'rewards', 'deadline'] as const).map((sortOption) => (
-                <button
-                  key={sortOption}
-                  onClick={() => setSortBy(sortOption)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                    sortBy === sortOption
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {sortOption.charAt(0).toUpperCase() + sortOption.slice(1)}
-                </button>
-              ))}
+              <FilterButton
+                label="Newest"
+                isActive={sortBy === 'newest'}
+                onClick={() => setSortBy('newest')}
+              />
+              <FilterButton
+                label="Rewards"
+                isActive={sortBy === 'rewards'}
+                onClick={() => setSortBy('rewards')}
+              />
+              <FilterButton
+                label="Deadline"
+                isActive={sortBy === 'deadline'}
+                onClick={() => setSortBy('deadline')}
+              />
             </div>
           </div>
         </div>
       </div>
 
       {/* Contest Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredAndSortedContests.map((contest) => (
           <ContestCard key={contest.id} contest={contest} />
         ))}
@@ -151,9 +187,11 @@ export function ContestList({ contests, loading = false, error = null, title = '
       {/* No results for filter */}
       {filteredAndSortedContests.length === 0 && contests.length > 0 && (
         <div className="text-center py-12">
-          <div className="text-gray-400 mb-4 text-4xl">🔍</div>
-          <p className="text-gray-900 font-medium mb-2">No contests match your filters</p>
-          <p className="text-gray-600 text-sm">
+          <div className="text-[var(--foreground-muted)] mb-4 text-4xl">🔍</div>
+          <p className="text-[var(--foreground)] font-medium mb-2">
+            No contests match your filters
+          </p>
+          <p className="text-[var(--foreground-muted)] text-sm">
             Try adjusting your filter or sort criteria
           </p>
         </div>
