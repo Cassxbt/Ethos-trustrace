@@ -1,11 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public read access for contests
-    match /contests/{contestId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == resource.data.creatorAddress;
-    }
+     // Public read access for contests
+     match /contests/{contestId} {
+       allow read: if true;
+       allow create: if true;
+       allow update, delete: if false;
+     }
     
     // Public read access for submissions
     match /submissions/{submissionId} {
