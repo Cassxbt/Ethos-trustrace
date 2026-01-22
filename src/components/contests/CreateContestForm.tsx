@@ -71,7 +71,14 @@ export function CreateContestForm({ onSubmit, loading = false }: CreateContestFo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    console.log('Form submit triggered', formData);
+    
+    if (!validateForm()) {
+      console.log('Form validation failed', errors);
+      return;
+    }
+    
+    console.log('Calling onSubmit with:', formData);
     onSubmit(formData);
   };
 

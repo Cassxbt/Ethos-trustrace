@@ -32,7 +32,10 @@ export default function CreateContestPage() {
   }, []);
 
   const handleSubmit = async (contestData: ContestFormData) => {
+    console.log('Page handleSubmit called', contestData);
+    
     if (!address) {
+      console.error('No address connected');
       setError('Please connect your wallet first');
       return;
     }
@@ -41,6 +44,16 @@ export default function CreateContestPage() {
     setError(null);
 
     try {
+      console.log('Creating contest with params:', {
+        title: contestData.title,
+        prompt: contestData.prompt,
+        rewardsPool: contestData.rewardsPool,
+        submissionDuration: Number(contestData.submissionDuration),
+        votingDuration: Number(contestData.votingDuration),
+        minCredibilityScore: Number(contestData.minCredibilityScore),
+        creator: address,
+      });
+      
       const contestId = await createContest({
         title: contestData.title,
         prompt: contestData.prompt,
@@ -51,11 +64,13 @@ export default function CreateContestPage() {
         creator: address,
       });
 
+      console.log('Contest created successfully, ID:', contestId);
       setSuccess(true);
       setTimeout(() => {
         router.push(ROUTES.contest(contestId));
       }, 1200);
     } catch (err) {
+      console.error('Error creating contest:', err);
       setError(err instanceof Error ? err.message : 'Failed to create contest');
     } finally {
       setLoading(false);
