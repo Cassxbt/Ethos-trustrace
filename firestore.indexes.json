@@ -60,6 +60,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "contestId", "order": "ASCENDING" },
+        { "fieldPath": "voter", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
