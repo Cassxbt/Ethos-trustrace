@@ -1,9 +1,10 @@
 'use client';
 
-import { RainbowKitProvider, lightTheme } from '@rainbow-me/rainbowkit';
+import { RainbowKitProvider, lightTheme, coolMode } from '@rainbow-me/rainbowkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { config } from '@/lib/wagmi';
+import { baseSepolia } from 'wagmi/chains';
 
 const queryClient = new QueryClient();
 
@@ -18,8 +19,10 @@ export function RainbowKitProviderWrapper({ children }: { children: React.ReactN
             borderRadius: 'medium',
             fontStack: 'system',
           })}
+          initialChain={baseSepolia}
           modalSize="compact"
           showRecentTransactions={true}
+          coolMode
         >
           {children}
         </RainbowKitProvider>

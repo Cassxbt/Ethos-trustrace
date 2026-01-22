@@ -47,9 +47,13 @@ export default function RootLayout({
         <ErrorBoundary>
           <ToastProvider>
             <RainbowKitProviderWrapper>
-              <div className="min-h-screen bg-gray-50">
+              {/* Noise overlay for texture */}
+              <div className="noise-overlay" />
+
+              <div className="min-h-screen">
                 <Navigation />
-                <main>{children}</main>
+                {/* Main content with padding for fixed nav */}
+                <main className="pt-20">{children}</main>
               </div>
             </RainbowKitProviderWrapper>
           </ToastProvider>
